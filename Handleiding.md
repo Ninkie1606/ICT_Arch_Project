@@ -1,12 +1,12 @@
 # Technische Handleiding: Inrichting PoC Archiefsysteem
 
-Deze handleiding beschrijft de stappen die zijn ondernomen om de Proof of Concept (PoC) omgeving in te richten, de data te laden en de integriteit te verifiëren.
+Deze handleiding beschrijft de stappen die zijn ondernomen om de Proof of Concept (PoC) omgeving in te richten, de data te laden en de integriteit te verifiëren inclusief Role-Based Access Control (RBAC) en integriteitscontroles.
 
 ## 1. Infrastructuur Opstarten
 
 De gehele stack (PostgreSQL, MinIO en pgAdmin) wordt gestart middels Docker Compose. Dit zorgt voor een consistente omgeving waarin alle componenten direct met elkaar kunnen communiceren.
 
-Commando:
+**Commando:**
 docker-compose up -d
 
 ## 2. Object Storage Inrichten (MinIO)
@@ -14,7 +14,7 @@ docker-compose up -d
 De fysieke bestanden (blobs) worden opgeslagen in MinIO om de database te ontlasten en schaalbaarheid te garanderen.
 
 1. Navigeer naar de MinIO Console via http://localhost:9001.
-2. Log in met de administrator gegevens uit het .env bestand. (deze vind je ook terug in example.env)
+2. Log in met de administrator gegevens uit het .env bestand (deze vind je ook terug in example.env).
 3. Maak een nieuwe bucket aan met de naam: archief-scans.
 4. Upload de volgende PDF-bestanden naar deze bucket:
    - 001 - Inleiding Docker Swarm.pdf
@@ -25,52 +25,50 @@ De fysieke bestanden (blobs) worden opgeslagen in MinIO om de database te ontlas
 
 ## 3. Database Initialisatie en Data Import (pgAdmin)
 
-Navigeer naar pgAdmin via http://localhost:8080. Om de metadata te koppelen aan de zojuist geüploade bestanden in MinIO, voer je het volgende SQL-script uit:
+Navigeer naar pgAdmin via http://localhost:8080. Aangezien de database-structuur (init.sql) reeds is voorzien van velden voor RBAC en checksums, voer je enkel het volgende SQL-script uit om de testdata te laden:
 
 ```sql
-
--- Stap 1: Tabellen opschonen
+-- Stap 1: Tabellen opschonen voor een zuivere start
 TRUNCATE audit_trail, document_versions, documents RESTART IDENTITY CASCADE;
 
--- Stap 2: Document metadata registreren
-INSERT INTO documents (id, title, original_filename) VALUES
-(1, 'Inleiding Docker Swarm', '001 - Inleiding Docker Swarm.pdf'),
-(2, 'Vervolg Docker Swarm', '002 - Vervolg Docker Swarm.pdf'),
-(3, 'Software architectuur en message queues', '003 - Software architectuur en message queues.pdf'),
-(4, 'Software architectuur verantwoorden', '004 - Software architectuur verantwoorden.pdf'),
-(5, 'Gelaagde stijl en C4-model', '005 - Gelaagde stijl en C4-model.pdf');
+-- Stap 2: Document metadata registreren (1=Publiek, 2=Onderzoeker, 3=Archivaris)
+INSERT INTO documents (id, title, original_filename, role_id) VALUES
+(1, 'Inleiding Docker Swarm', '001 - Inleiding Docker Swarm.pdf', 1),
+(2, 'Vervolg Docker Swarm', '002 - Vervolg Docker Swarm.pdf', 1),
+(3, 'Software architectuur en message queues', '003 - Software architectuur en message queues.pdf', 2),
+(4, 'Software architectuur verantwoorden', '004 - Software architectuur verantwoorden.pdf', 2),
+(5, 'Gelaagde stijl en C4-model', '005 - Gelaagde stijl en C4-model.pdf', 3);
 
--- Stap 3: Koppeling leggen naar de Blobs in MinIO
-INSERT INTO document_versions (document_id, minio_key, version_number) VALUES
-(1, 'archief-scans/001 - Inleiding Docker Swarm.pdf', 1),
-(2, 'archief-scans/002 - Vervolg Docker Swarm.pdf', 1),
-(3, 'archief-scans/003 - Software architectuur en message queues.pdf', 1),
-(4, 'archief-scans/004 - Software architectuur verantwoorden.pdf', 1),
-(5, 'archief-scans/005 - Gelaagde stijl en C4-model.pdf', 1);
+-- Stap 3: Koppeling leggen naar de Blobs in MinIO inclusief SHA-256 Checksums
+INSERT INTO document_versions (document_id, minio_key, version_number, checksum) VALUES
+(1, 'archief-scans/001 - Inleiding Docker Swarm.pdf', 1, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'),
+(2, 'archief-scans/002 - Vervolg Docker Swarm.pdf', 1, '8479373c7075e7a96409949d0ed977066620cd2c4dce45315357ef3632616084'),
+(3, 'archief-scans/003 - Software architectuur en message queues.pdf', 1, '7d1a54127b222518f353e547c6e6191991732cd92372079017616cd2803023e3'),
+(4, 'archief-scans/004 - Software architectuur verantwoorden.pdf', 1, '516f39e6a97127e530932230353c907149021e1494918e97491763914a191244'),
+(5, 'archief-scans/005 - Gelaagde stijl en C4-model.pdf', 1, 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3');
 
--- Stap 4: Audit trail invullen
+-- Stap 4: Audit trail invullen voor onweerlegbaarheid
 INSERT INTO audit_trail (action, document_id, user_id) VALUES
 ('INITIAL_UPLOAD', 1, 'NickTheArchivist'),
 ('INITIAL_UPLOAD', 2, 'NickTheArchivist'),
 ('INITIAL_UPLOAD', 3, 'NickTheArchivist'),
 ('INITIAL_UPLOAD', 4, 'NickTheArchivist'),
 ('INITIAL_UPLOAD', 5, 'NickTheArchivist');
-
 ```
 
 ## 4. Validatie en Demonstratie
 
-Gebruik de volgende queries om de koppeling aan te tonen:
+Gebruik de volgende queries om aan te tonen dat de metadata, security en opslag correct zijn geïntegreerd:
 
-Overzicht van het digitale archief:
+**Overzicht van het archief inclusief autorisatie en integriteit:**
 
 ```sql
-SELECT d.id, d.title, v.minio_key AS "opslag_pad", v.version_number
+SELECT d.title, d.role_id, v.minio_key AS "opslag_pad", v.checksum
 FROM documents d
 JOIN document_versions v ON d.id = v.document_id;
 ```
 
-Controleren van acties (Audit Trail):
+**Controleren van acties (Audit Trail):**
 
 ```sql
 SELECT action, document_id, timestamp
@@ -78,6 +76,8 @@ FROM audit_trail
 ORDER BY timestamp DESC;
 ```
 
-## 5. Troubleshooting
+## 5. Ontwerpkeuzes
 
-Tijdens de ontwikkeling is gebleken dat kolomnamen in het SQL-script exact moeten matchen met de database-initiatie (init.sql). Indien er een "column does not exist" fout optreedt, controleer dan of de tabelstructuur in PostgreSQL overeenkomt met de kolomnamen in de INSERT-statements.
+- **Data Integriteit**: Gebruik van SHA-256 checksums om corruptie van scans in de object store te detecteren.
+- **Security**: Implementatie van role_id om toegangscontrole op documentniveau mogelijk te maken.
+- **Architectuur**: Strikt onderscheid tussen relationele metadata (PostgreSQL) en binaire bestanden (MinIO).
