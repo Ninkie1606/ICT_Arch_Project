@@ -3,13 +3,12 @@ version: '3.8'
 services:
   minio:
     image: minio/minio
-    container_name: poc_storage_nick
     ports:
       - "9000:9000"
       - "9001:9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin_nick}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-VervangDitDoorEenVeiligWachtwoord123}
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
@@ -21,11 +20,10 @@ services:
 
   postgres:
     image: postgres:15-alpine
-    container_name: poc_metadata_nick
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-nick_archivaris}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-MijnGeheimeDatabaseWachtwoord456}
+      POSTGRES_DB: ${POSTGRES_DB:-history_metadata_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init:/docker-entrypoint-initdb.d
@@ -37,10 +35,9 @@ services:
 
   pgadmin:
     image: dpage/pgadmin4
-    container_name: pgadmin_nick
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@admin.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin_password_123}
     ports:
       - "8080:80"
     networks:
