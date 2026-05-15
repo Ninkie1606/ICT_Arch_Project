@@ -1,31 +1,52 @@
 # Technische Handleiding: Inrichting PoC Archiefsysteem
 
-Deze handleiding beschrijft de stappen die zijn ondernomen om de Proof of Concept (PoC) omgeving in te richten, de data te laden en de integriteit te verifiëren inclusief Role-Based Access Control (RBAC) en integriteitscontroles.
+Deze handleiding beschrijft de stappen die zijn ondernomen om de Proof of Concept (PoC) omgeving in te richten op het Docker Swarm cluster, de data te laden en de integriteit te verifiëren.
 
-## 1. Infrastructuur Opstarten
+---
 
-De gehele stack (PostgreSQL, MinIO en pgAdmin) wordt gestart middels Docker Compose. Dit zorgt voor een consistente omgeving waarin alle componenten direct met elkaar kunnen communiceren.
+## 1. Infrastructuur Opstarten (Docker Swarm)
 
-**Commando:**
-docker-compose up -d
+De gehele stack (PostgreSQL, MinIO en pgAdmin) wordt uitgerold als een Docker Stack. Dit garandeert dat de services binnen het overlay-netwerk (`adr2_default`) veilig met elkaar kunnen communiceren.
+
+**Commando's:**
+
+```bash
+# Ga naar de map met je stack.yml
+cd ~/jouw-project-map
+
+# Start de stack op het cluster
+docker stack deploy -c stack.yml adr2
+```
+
+---
 
 ## 2. Object Storage Inrichten (MinIO)
 
-De fysieke bestanden (blobs) worden opgeslagen in MinIO om de database te ontlasten en schaalbaarheid te garanderen.
+De fysieke bestanden (blobs) worden opgeslagen in MinIO. Dit ontlast de database en zorgt voor een schaalbaar systeem.
 
-1. Navigeer naar de MinIO Console via http://localhost:9001.
-2. Log in met de administrator gegevens uit het .env bestand (deze vind je ook terug in example.env).
-3. Maak een nieuwe bucket aan met de naam: archief-scans.
-4. Upload de volgende PDF-bestanden naar deze bucket:
-   - 001 - Inleiding Docker Swarm.pdf
-   - 002 - Vervolg Docker Swarm.pdf
-   - 003 - Software architectuur en message queues.pdf
-   - 004 - Software architectuur verantwoorden.pdf
-   - 005 - Gelaagde stijl en C4-model.pdf
+1. Navigeer naar de MinIO Console via: **http://10.164.10.29:9001**
+2. Log in met de credentials: `admin` / `password123`.
+3. Maak een nieuwe bucket aan met de naam: `archief-scans`.
+4. Upload de test-PDF-bestanden naar deze bucket:
+   - `001 - Inleiding Docker Swarm.pdf`
+   - `002 - Vervolg Docker Swarm.pdf`
+   - `003 - Software architectuur en message queues.pdf`
+   - `004 - Software architectuur verantwoorden.pdf`
+   - `005 - Gelaagde stijl en C4-model.pdf`
+
+---
 
 ## 3. Database Initialisatie en Data Import (pgAdmin)
 
-Navigeer naar pgAdmin via http://localhost:8080. Aangezien de database-structuur (init.sql) reeds is voorzien van velden voor RBAC en checksums, voer je enkel het volgende SQL-script uit om de testdata te laden:
+Navigeer naar pgAdmin via: **http://10.164.10.29:8080** (Login: `admin@test.com` / `password123`).
+
+**Verbinding maken:**
+
+- Voeg een nieuwe server toe.
+- Hostnaam: `postgres` (gebruik de servicenaam, niet het IP, voor interne communicatie binnen het Docker netwerk).
+- Gebruiker: `user` / Wachtwoord: `password123`.
+
+Voer in de Query Tool het volgende SQL-script uit om de metadata te koppelen aan de bestanden in MinIO:
 
 ```sql
 -- Stap 1: Tabellen opschonen voor een zuivere start
@@ -56,11 +77,13 @@ INSERT INTO audit_trail (action, document_id, user_id) VALUES
 ('INITIAL_UPLOAD', 5, 'NickTheArchivist');
 ```
 
+---
+
 ## 4. Validatie en Demonstratie
 
-Gebruik de volgende queries om aan te tonen dat de metadata, security en opslag correct zijn geïntegreerd:
+Voer de volgende queries uit om de integratie aan te tonen:
 
-**Overzicht van het archief inclusief autorisatie en integriteit:**
+**Overzicht van het archief (Metadata + Opslaglocatie + Integriteit):**
 
 ```sql
 SELECT d.title, d.role_id, v.minio_key AS "opslag_pad", v.checksum
@@ -68,16 +91,18 @@ FROM documents d
 JOIN document_versions v ON d.id = v.document_id;
 ```
 
-**Controleren van acties (Audit Trail):**
+**Controleren van het audit-logboek:**
 
 ```sql
-SELECT action, document_id, timestamp
+SELECT action, document_id, timestamp, user_id
 FROM audit_trail
 ORDER BY timestamp DESC;
 ```
 
-## 5. Ontwerpkeuzes
+---
 
-- **Data Integriteit**: Gebruik van SHA-256 checksums om corruptie van scans in de object store te detecteren.
-- **Security**: Implementatie van role_id om toegangscontrole op documentniveau mogelijk te maken.
-- **Architectuur**: Strikt onderscheid tussen relationele metadata (PostgreSQL) en binaire bestanden (MinIO).
+## 5. Ontwerpkeuzes in de PoC
+
+- **Data Integriteit**: Gebruik van SHA-256 hashes om aan te tonen dat de bestanden in de Object Store niet ongemerkt gewijzigd kunnen worden.
+- **Security**: Implementatie van een `role_id` op documentniveau als basis voor Role-Based Access Control.
+- **Orchestratie**: Gebruik van Docker Swarm voor container management, wat de overstap naar een productie-omgeving vereenvoudigt.

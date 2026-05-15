@@ -1,44 +1,78 @@
 # Metadata Management en Object Storage PoC
 
-Dit project dient als Proof of Concept (PoC) voor een schaalbaar archiefsysteem, ontwikkeld voor een onderzoeksafdeling geschiedenis. Het doel is om aan te tonen hoe metadata en fysieke bestanden (blobs) gescheiden kunnen worden opgeslagen om de prestaties en integriteit van het archief te waarborgen.
+Dit project dient als Proof of Concept (PoC) voor een schaalbaar archiefsysteem, ontwikkeld voor een onderzoeksafdeling geschiedenis. Het doel is om aan te tonen hoe metadata en fysieke bestanden (blobs) gescheiden kunnen worden opgeslagen om de prestaties en integriteit van het archief te waarborgen binnen een Docker Swarm cluster.
 
-## Architectuur & Design Beslissingen
+---
 
-De oplossing is gebaseerd op een gescheiden opslagstrategie waarbij data-integriteit en security (RBAC) centraal staan.
+## 1. Architectuur & Design Beslissingen
 
-- **PostgreSQL**: Fungeert als de Metadata Store. Hier worden documenteigenschappen, versienummers, rollen (`role_id`) en integriteit-hashes (`checksum`) bijgehouden.
-- **MinIO**: Fungeert als de Object Store. Hier worden de daadwerkelijke scans en documenten (blobs) opgeslagen in buckets.
-- **pgAdmin**: Wordt gebruikt voor het beheer van de relationele data en het uitvoeren van queries.
+De oplossing is gebaseerd op een gescheiden opslagstrategie waarbij data-integriteit en stabiliteit centraal staan.
 
-### Documentatie van Beslissingen
+- **PostgreSQL**: De Metadata Store voor documenteigenschappen, versienummers en SHA-256 integriteit-hashes.
+- **MinIO**: De Object Store voor de daadwerkelijke scans en documenten (blobs).
+- **pgAdmin**: Beheerinterface voor de PostgreSQL database.
 
-Voor een gedetailleerde onderbouwing van de gemaakte keuzes (zoals de keuze voor SHA-256 en de scheiding van opslag), zie:
+### Belangrijke aanpassingen in de PoC-fase
 
-- **[ADR.md](./ADR.md)**: Architecture Decision Record.
+Tijdens de ontwikkeling zijn de volgende keuzes gemaakt om de stabiliteit binnen de Docker Swarm-omgeving te garanderen:
 
-## Visualisatie (C4-Model)
+1. **Named Volumes**: In plaats van bind mounts gebruiken we Docker-managed volumes (`minio_volume`, `postgres_volume`). Dit voorkomt permissie-fouten en "Rejected" states bij het deployen op verschillende cluster-nodes.
+2. **Hardcoded Environment Variables**: Om initialisatie-fouten (zoals lege admin-credentials) te voorkomen, zijn de omgevingsvariabelen direct in de `stack.yml` gedefinieerd voor deze PoC.
 
-Om de structuur van dit project inzichtelijk te maken, zijn er C4-diagrammen (Context & Container) opgesteld:
+Voor een gedetailleerde onderbouwing, zie de **[ADR.md](./ADR.md)**.
 
-- **[C4-POC/](./C4-POC/)**: Bevat de diagrammen en Structurizr DSL van de huidige Docker-opzet.
-- **[C4-POC-toekomstig/](./C4-POC-toekomstig/)**: Bevat de blauwdruk voor een volledige applicatie, inclusief een Frontend SPA en Backend API, mocht dit project verder ontwikkeld worden.
+---
 
-## Gegevensstructuur
+## 2. Gegevensstructuur
 
-Het systeem gebruikt drie kern-tabellen om de data-integriteit en veiligheid te bewaken:
+Het systeem gebruikt drie kern-tabellen in PostgreSQL om de data-integriteit en veiligheid te bewaken:
 
-1.  **documents**: Bevat primaire informatie, de originele bestandsnaam en de `role_id` voor toegangscontrole.
-2.  **document_versions**: Beheert de koppeling naar MinIO via een unieke key en bevat de SHA-256 checksum voor integriteitscontrole.
-3.  **audit_trail**: Logt elke actie (zoals uploads) voor volledige traceerbaarheid en onweerlegbaarheid.
+1. **documents**: Bevat de primaire metadata, de originele bestandsnaam en de `role_id` voor toegangscontrole.
+2. **document_versions**: Beheert de koppeling naar de fysieke bestanden in MinIO via een unieke key en bevat de SHA-256 checksum voor integriteitscontrole.
+3. **audit_trail**: Logt elke actie (zoals uploads en wijzigingen) voor volledige traceerbaarheid.
 
-## Installatie en Gebruik
+---
 
-### 1. Infrastructuur opstarten
+## 3. Deployment (Docker Swarm)
 
-De omgeving wordt beheerd via Docker Compose. Zorg dat je een .env bestand hebt geconfigureerd (zie example.env) en start de containers met:
+De omgeving draait op een Docker Swarm cluster. Voor de huidige stabiliteit is de stack gepind op de manager-node (`2526-ICT-arch-nick-reul`).
 
-docker-compose up -d
+### De Stack opstarten
 
-### 2. Inrichting
+Gebruik de volgende commando's in de terminal:
 
-Volg de stappen in de **[HANDLEIDING.md](./HANDLEIDING.md)** HANDLEIDING.md voor het uploaden van de testbestanden naar MinIO en het initialiseren van de database-metadata via pgAdmin.
+```bash
+# Eventuele oude stack verwijderen
+docker stack rm adr2
+
+# De stack deployen met de geoptimaliseerde configuratie
+docker stack deploy -c stack.yml adr2
+```
+
+### Toegang tot de Services (Node: 10.164.10.29)
+
+| Service           | URL                      | Credentials                         |
+| ----------------- | ------------------------ | ----------------------------------- |
+| **pgAdmin4**      | http://10.164.10.29:8080 | `admin@test.com` / `password123`    |
+| **MinIO Console** | http://10.164.10.29:9001 | `admin` / `password123`             |
+| **PostgreSQL**    | 10.164.10.29:5432        | `user` / `password123` (DB: `mydb`) |
+
+> **Configuratie tip:** Gebruik in pgAdmin de hostnaam `postgres` (internal Docker DNS) om verbinding te maken met de database.
+
+---
+
+## 4. Visualisatie (C4-Model)
+
+De structuur van dit project is inzichtelijk gemaakt via C4-diagrammen in Structurizr DSL:
+
+- **[C4-POC/](./C4-POC/)**: Diagrammen van de huidige Docker Swarm-opzet.
+- **[C4-POC-toekomstig/](./C4-POC-toekomstig/)**: Blauwdruk voor de volledige applicatie inclusief Frontend SPA en Backend API.
+
+---
+
+## 5. Technische Specificaties
+
+- **Orchestration**: Docker Swarm
+- **Images**: `postgres:15-alpine`, `minio/minio:latest`, `dpage/pgadmin4:latest`
+- **Storage**: Named Volumes met de `local` driver.
+- **Netwerk**: Overlay netwerk (`adr2_default`).
