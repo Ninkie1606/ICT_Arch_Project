@@ -1,13 +1,8 @@
 version: '3.8'
 
 services:
-  # Object Storage voor de scans
   minio:
     image: minio/minio
-    container_name: poc_storage_nick
-    placement:
-      constraints:
-        - node.hostname == 2526-ICT-arch-nick-reul  
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -17,14 +12,13 @@ services:
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == 2526-ICT-arch-nick-reul
 
-  # Database voor metadata en versioning
   postgres:
     image: postgres:15-alpine
-    container_name: poc_metadata_nick
-    placement:
-      constraints:
-        - node.hostname == 2526-ICT-arch-nick-reul
     ports:
       - "5432:5432"
     environment:
@@ -33,23 +27,26 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init:/docker-entrypoint-initdb.d
+      # WARNING: This bind mount is likely causing your "invalid mount config"
+      - /home/student/ict_project/init:/docker-entrypoint-initdb.d
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == 2526-ICT-arch-nick-reul
 
   pgadmin:
-      image: dpage/pgadmin4
-      container_name: pgadmin_nick
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "8080:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    deploy:
       placement:
-      constraints:
-        - node.hostname == 2526-ICT-arch-nick-reul
-      environment:
-        PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
-        PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
-      ports:
-        - "8080:80"
-      volumes:
-        - pgadmin_data:/var/lib/pgadmin
-      depends_on:
-        - postgres
+        constraints:
+          - node.hostname == 2526-ICT-arch-nick-reul
 
 volumes:
   minio_data:
