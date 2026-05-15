@@ -5,6 +5,9 @@ services:
   minio:
     image: minio/minio
     container_name: poc_storage_nick
+    placement:
+      constraints:
+        - node.hostname == 2526-ICT-arch-nick-reul  
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -19,6 +22,9 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: poc_metadata_nick
+    placement:
+      constraints:
+        - node.hostname == 2526-ICT-arch-nick-reul
     ports:
       - "5432:5432"
     environment:
@@ -32,6 +38,9 @@ services:
   pgadmin:
       image: dpage/pgadmin4
       container_name: pgadmin_nick
+      placement:
+      constraints:
+        - node.hostname == 2526-ICT-arch-nick-reul
       environment:
         PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
         PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
