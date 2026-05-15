@@ -19,6 +19,8 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: poc_metadata_nick
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -35,9 +37,12 @@ services:
         PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
       ports:
         - "8080:80"
+      volumes:
+        - pgadmin_data:/var/lib/pgadmin
       depends_on:
         - postgres
 
 volumes:
   minio_data:
   postgres_data:
+  pgadmin_data:
