@@ -93,11 +93,11 @@ services:
 
 secrets:
   minio_password:
-    file: ./secrets/minio_password.txt
+    external: true
   postgres_password:
-    file: ./secrets/postgres_password.txt
+    external: true
   pgadmin_password:
-    file: ./secrets/pgadmin_password.txt
+    external: true
 
 networks:
   archief_net:
