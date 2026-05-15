@@ -7,10 +7,10 @@ services:
       - "9000:9000"
       - "9001:9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password123
     volumes:
-      - minio_data:/data
+      - minio_volume:/data
     command: server /data --console-address ":9001"
     deploy:
       placement:
@@ -22,12 +22,11 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: mydb
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      # We laten de 'init' bind mount even weg om te kijken of hij zo wel start
+      - postgres_volume:/var/lib/postgresql/data
     deploy:
       placement:
         constraints:
@@ -36,18 +35,19 @@ services:
   pgadmin:
     image: dpage/pgadmin4:latest
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_DEFAULT_EMAIL: admin@test.com
+      PGADMIN_DEFAULT_PASSWORD: password123
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "False"
     ports:
       - "8080:80"
     volumes:
-      - pgadmin_data:/var/lib/pgadmin
+      - pgadmin_volume:/var/lib/pgadmin
     deploy:
       placement:
         constraints:
           - node.hostname == 2526-ICT-arch-nick-reul
 
 volumes:
-  minio_data:
-  postgres_data:
-  pgadmin_data:
+  minio_volume:
+  postgres_volume:
+  pgadmin_volume:
