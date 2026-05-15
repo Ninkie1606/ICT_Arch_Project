@@ -3,14 +3,11 @@ version: "3.8"
 services:
   minio:
     image: minio/minio
+    env_file:
+      - .env
     ports:
       - "9000:9000"
       - "9001:9001"
-    secrets:
-      - minio_password
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin_nick}
-      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_password
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
@@ -33,12 +30,8 @@ services:
 
   postgres:
     image: postgres:15-alpine
-    secrets:
-      - postgres_password
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-nick_archivaris}
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
-      POSTGRES_DB: ${POSTGRES_DB:-history_metadata_db}
+    env_file:
+      - .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -60,11 +53,8 @@ services:
 
   pgadmin:
     image: dpage/pgadmin4
-    secrets:
-      - pgadmin_password
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@admin.com}
-      PGADMIN_DEFAULT_PASSWORD_FILE: /run/secrets/pgadmin_password
+    env_file:
+      - .env
     ports:
       - "8080:80"
     networks:
@@ -83,14 +73,6 @@ services:
         delay: 10s
         failure_action: rollback
         monitor: 30s
-
-secrets:
-  minio_password:
-    external: true
-  postgres_password:
-    external: true
-  pgadmin_password:
-    external: true
 
 networks:
   archief_net:
