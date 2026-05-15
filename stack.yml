@@ -30,11 +30,6 @@ services:
         delay: 10s
         failure_action: rollback
         monitor: 30s
-      healthcheck:
-        test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-        interval: 30s
-        timeout: 10s
-        retries: 3
 
   postgres:
     image: postgres:15-alpine
@@ -66,12 +61,6 @@ services:
         delay: 10s
         failure_action: rollback
         monitor: 30s
-      healthcheck:
-        test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
-        interval: 10s
-        timeout: 5s
-        retries: 5
-        start_period: 10s
 
   pgadmin:
     image: dpage/pgadmin4
@@ -101,11 +90,6 @@ services:
         delay: 10s
         failure_action: rollback
         monitor: 30s
-      healthcheck:
-        test: ["CMD", "wget", "--spider", "-q", "http://localhost/pgadmin4"]
-        interval: 30s
-        timeout: 10s
-        retries: 3
 
 secrets:
   minio_password:
