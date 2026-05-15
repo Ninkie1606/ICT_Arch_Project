@@ -41,7 +41,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-history_metadata_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init:/docker-entrypoint-initdb.d
     networks:
       - archief_net
     deploy:
@@ -99,4 +98,6 @@ networks:
 
 volumes:
   minio_data:
+    driver: local
   postgres_data:
+    driver: local
