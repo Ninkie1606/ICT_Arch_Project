@@ -1,9 +1,8 @@
 version: '3.8'
 
 services:
-  # Object Storage voor de scans
   minio:
-    image: minio/minio
+    image: minio/minio:latest
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -18,7 +17,6 @@ services:
         constraints:
           - node.hostname == 2526-ICT-arch-nick-reul
 
-  # Database voor metadata en versioning
   postgres:
     image: postgres:15-alpine
     ports:
@@ -29,16 +27,14 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Let op: zorg dat dit pad exact klopt met jouw systeem (output van 'pwd')
-      - /home/student/ict_project/init:/docker-entrypoint-initdb.d
+      # We laten de 'init' bind mount even weg om te kijken of hij zo wel start
     deploy:
       placement:
         constraints:
           - node.hostname == 2526-ICT-arch-nick-reul
 
-  # Database beheer interface
   pgadmin:
-    image: dpage/pgadmin4
+    image: dpage/pgadmin4:latest
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
@@ -46,8 +42,6 @@ services:
       - "8080:80"
     volumes:
       - pgadmin_data:/var/lib/pgadmin
-    depends_on:
-      - postgres
     deploy:
       placement:
         constraints:
