@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   minio:
@@ -6,23 +6,43 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+    secrets:
+      - minio_password
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin_nick}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-VervangDitDoorEenVeiligWachtwoord123}
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_password
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
     networks:
       - archief_net
     deploy:
+      replicas: 1
       restart_policy:
         condition: on-failure
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 30s
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+        interval: 30s
+        timeout: 10s
+        retries: 3
 
   postgres:
     image: postgres:15-alpine
+    secrets:
+      - postgres_password
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-nick_archivaris}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-MijnGeheimeDatabaseWachtwoord456}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       POSTGRES_DB: ${POSTGRES_DB:-history_metadata_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -30,21 +50,70 @@ services:
     networks:
       - archief_net
     deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
       restart_policy:
         condition: on-failure
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 30s
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+        start_period: 10s
 
   pgadmin:
     image: dpage/pgadmin4
+    secrets:
+      - pgadmin_password
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@admin.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin_password_123}
+      PGADMIN_DEFAULT_PASSWORD_FILE: /run/secrets/pgadmin_password
     ports:
       - "8080:80"
     networks:
       - archief_net
     deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
       restart_policy:
         condition: on-failure
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 30s
+      healthcheck:
+        test: ["CMD", "wget", "--spider", "-q", "http://localhost/pgadmin4"]
+        interval: 30s
+        timeout: 10s
+        retries: 3
+
+secrets:
+  minio_password:
+    file: ./secrets/minio_password.txt
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  pgadmin_password:
+    file: ./secrets/pgadmin_password.txt
 
 networks:
   archief_net:
