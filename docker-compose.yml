@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # Object Storage voor de scans
   minio:
     image: minio/minio
     ports:
@@ -17,6 +18,7 @@ services:
         constraints:
           - node.hostname == 2526-ICT-arch-nick-reul
 
+  # Database voor metadata en versioning
   postgres:
     image: postgres:15-alpine
     ports:
@@ -27,13 +29,14 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # WARNING: This bind mount is likely causing your "invalid mount config"
+      # Let op: zorg dat dit pad exact klopt met jouw systeem (output van 'pwd')
       - /home/student/ict_project/init:/docker-entrypoint-initdb.d
     deploy:
       placement:
         constraints:
           - node.hostname == 2526-ICT-arch-nick-reul
 
+  # Database beheer interface
   pgadmin:
     image: dpage/pgadmin4
     environment:
@@ -43,6 +46,8 @@ services:
       - "8080:80"
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
     deploy:
       placement:
         constraints:
